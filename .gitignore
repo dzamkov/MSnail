@@ -11,6 +11,7 @@
 *.ncb
 *.pyc
 */dist
+dist
 *.lkshw
 *.lkshs
 *.dia~

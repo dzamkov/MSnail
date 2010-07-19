@@ -8,8 +8,13 @@
 
 import Graphics.Rendering.OpenGL
 import Graphics.UI.GLUT
+import MSnail.Block
+
+myshape	=	createBalloid (SolidColor 0 255 255)
 
 main	=	do
 				createWindow "MSnail"
-				displayCallback	$=	clear [ColorBuffer]
+				displayCallback	$=	do
+												clear [ColorBuffer]
+												flush
 				mainLoop

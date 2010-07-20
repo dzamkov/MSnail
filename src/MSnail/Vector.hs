@@ -19,6 +19,7 @@ module MSnail.Vector (
 	polList,
 	octantPol,
 	axisOrder,
+	axisUnorder,
 	unitVector,
 	pNumVector,
 	addVector,
@@ -58,7 +59,7 @@ negatePol Negative	=	Positive
 	
 -- Gets the index of a polarity vector
 polIndex						::	PVector -> Int
-polIndex (Vector l m n)	=	(pcount l * 4) + (pcount m * 2) + (pcount n)
+polIndex (Vector l m n)	=	(pcount l) + (pcount m * 2) + (pcount n * 4)
 	where 
 		pcount Negative	=	0
 		pcount Positive	=	1
@@ -80,6 +81,11 @@ axisOrder	::	Vector a -> Axis -> Vector a
 axisOrder (Vector a b c) XAxis	=	(Vector a b c)
 axisOrder (Vector a b c) YAxis	=	(Vector b c a)
 axisOrder (Vector a b c) ZAxis	=	(Vector c a b)
+
+axisUnorder	::	Vector a -> Axis -> Vector a
+axisUnorder	(Vector a b c) XAxis	=	(Vector a b c)
+axisUnorder (Vector b c a) YAxis	=	(Vector a b c)
+axisUnorder (Vector c a b) ZAxis	=	(Vector a b c)
 
 -- Creates a unit vector
 unitVector	::	(Num a) => Axis -> Polarity -> Vector a

@@ -17,15 +17,21 @@ module MSnail.Vector (
 	negatePol,
 	polIndex,
 	polList,
+	octantPol,
 	axisOrder,
 	unitVector,
 	pNumVector,
 	addVector,
 	multVector,
+	toVertex3,
+	toVector3,
 	xUnits,
 	yUnits,
 	zUnits
 ) where
+
+import Graphics.Rendering.OpenGL
+import Graphics.UI.GLUT
 
 -- One of the three orthagonal Axies.
 data Axis	=
@@ -59,6 +65,15 @@ polIndex (Vector l m n)	=	(pcount l * 4) + (pcount m * 2) + (pcount n)
 		
 polList		=	let	pols	=	[Negative, Positive]
 							in	[(Vector x y z) | z <- pols, y <- pols, x <- pols]
+					
+-- Gets the polarity of the octant a pvector is in. An octant is positive if and only if
+-- it has an odd number of positive components. This is useful in determining which way
+-- triangles should face.					
+octantPol	::	PVector -> Polarity
+octantPol (Vector x y z)	=	x `mult` y `mult` z
+	where
+		mult l (Negative) =	negatePol l
+		mult l (Positive)	=	l
 
 -- Orders the axies in a vector so that the specified axis comes first.
 axisOrder	::	Vector a -> Axis -> Vector a
@@ -89,6 +104,12 @@ addVector (Vector ax ay az) (Vector bx by bz)	=	Vector (ax + bx) (ay + by) (az +
 -- Multiplies a vector by a scalar
 multVector	::	(Num a) => Vector a -> a -> Vector a
 multVector (Vector x y z) s	=	Vector (s * x) (s * y) (s * z)
+
+-- To opengl conversions
+toVertex3	::	Vector a -> Vertex3 a
+toVertex3 (Vector x y z)	=	Vertex3 x y z
+toVector3	::	Vector a -> Vector3 a
+toVector3 (Vector x y z)	=	Vector3 x y z
 
 -- Vector components
 xUnits (Vector x _ _)	=	x

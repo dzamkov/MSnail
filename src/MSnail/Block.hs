@@ -7,12 +7,9 @@
 -----------------------------------------------------------------------------
 
 module MSnail.Block (
-	Axis(..),
-	Polarity(..),
-	polIndex,
-	polList,
-	axisOrder,
 	Block(..),
+	BlockTriangle(..),
+	BlockSurface(..),
 	Material(..),
 	subBlock,
 	createBalloid,
@@ -47,8 +44,8 @@ data BlockTriangle	=
 -- A solid material that can make up a block.
 	
 data Material	=
-	Air									|
-	SolidColor Int Int Int			deriving(Show)
+	Air										|
+	SolidColor Double Double Double	deriving(Show)
 	
 -- Gets one of the 8 child blocks of a larger block. The block to get is specified by the polarity
 -- on each axis the block is away from the center.
@@ -100,9 +97,10 @@ surfaceDecompose (OctoBlock blocks) af ac bf bc mf		=	res
 		res			=	nb
 surfaceDecompose (CornerBlock c f b) af ac bf bc mf	=	case mf f b of
 								(True)	->	bf bc ac (case c of
-									(Vector x y z)	->	BlockTriangle
-										(Vector (negatePol x) y z)
-										(Vector x (negatePol y) z)
-										(Vector x y (negatePol z))
-										f b) InteriorSurface
+									(Vector x y z)	->	let {	cx	=	(Vector (negatePol x) y z);
+																	cy	=	(Vector x (negatePol y) z);
+																	cz	=	(Vector x y (negatePol z));}
+																	in	case octantPol c of
+										(Positive)	->	BlockTriangle cx cy cz b f
+										(Negative)	->	BlockTriangle cx cy cz f b) InteriorSurface
 								(False)	->	bc

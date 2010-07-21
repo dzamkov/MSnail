@@ -10,6 +10,7 @@ import Graphics.Rendering.OpenGL
 import Graphics.UI.GLUT
 import MSnail.Block
 import MSnail.Vector
+import MSnail.FRP
 import Data.IORef
 
 myshape	=	OctoBlock	[
@@ -28,7 +29,25 @@ myshape	=	OctoBlock	[
 		SolidBlock (SolidColor 0 0 255),
 		SolidBlock Air,
 		SolidBlock Air,
-		SolidBlock Air,
+		OctoBlock	[
+			SolidBlock Air,
+			SolidBlock Air,
+			SolidBlock Air,
+			SolidBlock Air,
+			OctoBlock	[
+				SolidBlock Air,
+				SolidBlock Air,
+				SolidBlock Air,
+				SolidBlock Air,
+				SolidBlock Air,
+				SolidBlock Air,
+				SolidBlock (SolidColor 0 255 0),
+				SolidBlock Air
+			],
+			SolidBlock Air,
+			SolidBlock (SolidColor 0 255 0),
+			SolidBlock Air
+		],
 		SolidBlock Air
 	]
 

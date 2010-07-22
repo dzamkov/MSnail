@@ -10,7 +10,8 @@ module MSnail.FRP (
 	Time(..),
 	DTime(..),
 	SF(..),
-	evalSF
+	evalSF,
+	optimizeSF
 ) where
 
 import qualified Control.Category (Category(..))
@@ -33,7 +34,10 @@ type DTime	=	Integer
 -- it in some way. SF's must obey causaility, and may only use previous values of the input
 -- signal when calculating a current value.
 data SF a b	where
-	EventSF				:: [(Time, b)] -> SF a (Event b)
+	EventSF				:: [(DTime, b)] -> SF a (Event b)
+	RebaseSF				::	Time -> SF a b -> SF a b
+	HoldSF				::	a -> SF (Event a) a
+	AccumSF				::	b -> (a -> b -> b) -> SF (Event a) b
 	ComposeSF			::	SF a c -> SF c b -> SF a b
 	ArrSF 				::	(a -> b) -> SF a b
 	ConstSF				::	b -> SF a b
@@ -58,7 +62,34 @@ evalSF		::	a -> SF a b -> b
 evalSF _ (EventSF ((0, e):l))	=	e:(evalSF () (EventSF l))
 evalSF _ (EventSF _)				=	[]
 evalSF v (ComposeSF g h)		=	(evalSF (evalSF v g) h)
+evalSF v (HoldSF l)				=	l
 evalSF v (ArrSF f)				=	f v
 evalSF _ (ConstSF x)				=	x
 evalSF v (FirstSF f)				=	case v of (v, r) -> (evalSF v f, r)
 evalSF v (IdentitySF)			=	v
+
+-- Improves the performance of a signal function with tree reduction.
+optimizeSF	::	SF a b -> SF a b
+optimizeSF (ComposeSF l m)	=	case (ComposeSF (optimizeSF l) (optimizeSF m)) of
+		(ComposeSF _ (ConstSF c))				->	ConstSF c
+		(ComposeSF (ConstSF c) (ArrSF f))	->	ConstSF (f c)
+		(ComposeSF (IdentitySF) x)				->	x
+		(ComposeSF x (IdentitySF))				->	x
+		x												->	x
+optimizeSF (RebaseSF t i)	=	case (RebaseSF t (optimizeSF i)) of
+		(RebaseSF t (EventSF es))				->	EventSF (fst $ evs (es, Nothing) t)
+		(RebaseSF _ (ConstSF c))				->	ConstSF c
+		(RebaseSF t (ComposeSF l m))			->	case (l, m) of
+			(EventSF es, HoldSF st)					->	case (evs (es, Just st) t) of
+				(nes, (Just nst))							->	ComposeSF (EventSF nes) (HoldSF nst)
+			(l, m)										->	optimizeSF (ComposeSF 
+																	(RebaseSF t l) 
+																	(RebaseSF t m))
+		x												->	x
+	where
+		evs	::	([(DTime, a)], Maybe a) -> Time -> ([(DTime, a)], Maybe a)
+		evs ((et, ei):r, l) t
+			|	t > et		=	evs (r, Just ei) (t - et)
+			|	otherwise	=	((et - t, ei):r, l)
+		evs ([], l) _		=	([], l)
+optimizeSF x					=	x

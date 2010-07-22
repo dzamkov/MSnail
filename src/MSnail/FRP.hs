@@ -9,7 +9,15 @@
 module MSnail.FRP (
 	Time(..),
 	DTime(..),
+	tickRate,
 	SF(..),
+	InputStream(..),
+	Event(..),
+	writeIStream,
+	readIStream,
+	advanceReadIStream,
+	advanceWriteIStream,
+	predictSF,
 	evalSF,
 	optimizeSF
 ) where
@@ -24,17 +32,24 @@ import Control.Arrow
 
 -- Tick based time, independant of any measurable unit such as seconds. Negative ticks
 -- on a signal can not be accessed.
-type Time	=	Integer 
+type Time	=	Int
 
 -- Measurement of a time interval in ticks. Where time represents a point in time, this will
 -- represent the distance between those points.
-type DTime	=	Integer
+type DTime	=	Int
+
+-- Unless otherwise noted, this is how many ticks there are in a second.
+tickRate		::	DTime
+tickRate		=	10 ^ 4
 
 -- A signal function which transforms a signal of one type to that of another, or modifies
 -- it in some way. SF's must obey causaility, and may only use previous values of the input
 -- signal when calculating a current value.
 data SF a b	where
 	EventSF				:: [(DTime, b)] -> SF a (Event b)
+	InjectSF				::	Time -> SF () a -> SF a b
+	UnionSF				::	SF a (Event b) -> SF a (Event b) -> SF a (Event b)
+	DelaySF				::	b -> Time -> SF a b -> SF a b
 	RebaseSF				::	Time -> SF a b -> SF a b
 	HoldSF				::	a -> SF (Event a) a
 	AccumSF				::	b -> (a -> b -> b) -> SF (Event a) b
@@ -43,6 +58,30 @@ data SF a b	where
 	ConstSF				::	b -> SF a b
 	FirstSF				::	SF a b -> SF (a, c) (b, c)
 	IdentitySF			::	SF a a
+	
+type SGen a	=	SF () a
+	
+-- A stream (event signal) that can accept new data to a point in the future, and have it
+-- read from another point.
+data InputStream a	=	InputStream	{
+	iStreamSignal	::	SF () (Event a),
+	writeTime		::	Time }
+	
+-- Writes an event to an input stream at its current write time.
+writeIStream	:: a -> InputStream a -> InputStream a
+writeIStream dat is	=	InputStream (UnionSF (EventSF [(writeTime is, dat)]) (iStreamSignal is)) (writeTime is)
+
+-- Reads all information currently in an input stream.
+readIStream		::	InputStream a -> SF () (Event a)
+readIStream is	=	optimizeSF (iStreamSignal is)
+
+-- Advances the read position on an input stream.
+advanceReadIStream	::	DTime -> InputStream a -> InputStream a
+advanceReadIStream t is	=	InputStream (RebaseSF t (iStreamSignal is)) (writeTime is + t)
+	
+-- Advances the write position on an input stream.
+advanceWriteIStream	::	DTime -> InputStream a -> InputStream a
+advanceWriteIStream t is	=	InputStream (iStreamSignal is) (writeTime is + t)
 	
 -- An event is a descrete occurence on a signal at a certain time. When there is no event at
 -- a time, an empty list is returned. If multiple events occur on a single tick, all of them
@@ -56,6 +95,12 @@ instance Control.Category.Category SF where
 instance Arrow SF where
 	arr f									=	ArrSF f
 	first l								=	FirstSF l
+	
+-- Gets when the likely next change for a signal generator is.
+predictSF	::	SGen a -> DTime
+predictSF (EventSF ((0, _):r))	=	1
+predictSF (EventSF ((x, _):r))	=	x
+predictSF _								=	1
 
 -- Gets the value of a signal function at its begining (0th tick)
 evalSF		::	a -> SF a b -> b

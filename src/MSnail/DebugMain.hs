@@ -13,12 +13,11 @@ import MSnail.Vector
 import MSnail.FRP
 import MSnail.Game
 import Data.IORef
-import Control.Arrow
 
 game	::	SF GameInput GameOutput
 game	=	proc (gi)	->	do
 				let	tick	=	currentTick gi
 				let	com	=	putStrLn (show (tick))
-				returnA		-<	GameOutput com
+				IdentitySF	-<	GameOutput com
 			
 main	=	runGame game

@@ -22,11 +22,12 @@ import Control.Arrow
 
 -- A one-time occurence of an input event.
 data GameInputEvent	=
-	GameStart
+	GameStart											|
+	KeyEvent Key KeyState Modifiers Position	deriving(Show)
 
 -- State of user and system input at any one time.
 data GameInput		=	GameInput {
-		currentTick		::	Int,
+		updateTime		::	Double,	--	deriviative of current time
 		windowWidth		::	Int,
 		windowHeight	::	Int,
 		inputEvents		::	Event (GameInputEvent)
@@ -40,13 +41,6 @@ data GameOutput	=	GameOutput {
 --	Controls the game...
 type GameController	=	SF GameInput GameOutput
 
-gameProc	::	SF Int GameInput
-gameProc	=	proc (it) -> do
-	wi	<-	ConstSF 640			-<	it
-	hi	<-	ConstSF 480			-<	it
-	ie	<-	ConstSF []			-<	it
-	IdentitySF	-<	GameInput it wi hi ie
-
 -- ? (The first argument specifies the amount of seconds in a tick)
 runGame	:: GameController -> IO ()
 runGame gc =	do
@@ -56,12 +50,11 @@ runGame gc =	do
 	windowSize			$=	Size 640 480
 
 	curTime		<-	get elapsedTime
-	tickCount	<-	newIORef 0
 	lastUpdate	<-	newIORef curTime
 	curRender	<-	newIORef (return ())
+	gameEvents	<-	newIORef ([GameStart])
 	
-	let	rgc	=	ComposeSF gameProc gc
-	curGC			<-	newIORef rgc
+	curGC			<-	newIORef gc
 	
 	displayCallback	$=	(do
 		rf		<-	get curRender
@@ -71,15 +64,18 @@ runGame gc =	do
 	idleCallback		$=	Just (do
 		curTime			<-	get elapsedTime
 		lastTime			<-	get lastUpdate
-		lastUpdate		$=	curTime
-		lastTickCount	<-	get tickCount
-		tickDelta		<-	return ((curTime - lastTime) * tickRate `div` (10 ^ 4))
-		tickCount		$=	lastTickCount + tickDelta
+		let	delta		= (fromIntegral (curTime - lastTime) / (10 ^ 4))
+		
+		events			<-	get gameEvents
 		
 		cgc				<-	get curGC
-		let	(ngc, v)	=	injectSF (TickCounterSF lastTickCount) tickDelta cgc
+		let	(ngc, v)	=	injectSF (GameInput delta 640 480 events) cgc
 		curGC				$=	ngc
 		curRender		$=	renderFunc v
+		gameEvents		$=	[]
 		
 		postRedisplay Nothing)
+	keyboardMouseCallback	$=	Just (\key ks mod pos -> do
+			events		<-	get gameEvents
+			gameEvents	$=	events ++ [KeyEvent key ks mod pos])
 	mainLoop

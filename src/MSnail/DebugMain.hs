@@ -16,8 +16,9 @@ import Data.IORef
 
 game	::	SF GameInput GameOutput
 game	=	proc (gi)	->	do
-				let	tick	=	currentTick gi
-				let	com	=	putStrLn (show (tick))
-				IdentitySF	-<	GameOutput com
+				tick	<-	accumSF 0 (\_ x -> x + 1)					-<	gi
+				time	<-	accumSF 0 (\i x -> x + (updateTime i))	-<	gi
+				let	com	=	putStrLn (show (tick) ++ " : " ++ show(time))
+				returnSF	-<	GameOutput com
 			
 main	=	runGame game
